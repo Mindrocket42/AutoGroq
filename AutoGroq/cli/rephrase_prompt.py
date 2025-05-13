@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", default=None, help="The model to use for rephrasing.")
     parser.add_argument("--temperature", type=float, default=0.5, help="The temperature value for rephrasing.")
     parser.add_argument("--max_tokens", type=int, default=32768, help="The maximum number of tokens for rephrasing.")
-    parser.add_argument("--provider", default=None, help="The LLM provider to use (e.g., 'openai', 'anthropic').")
+    parser.add_argument("--provider", default=None, help="The LLM provider to use (e.g., 'openai', 'groq', 'lmstudio', 'ollama').")
     
     args = parser.parse_args()
     rephrase_prompt_cli(args.prompt, args.provider, args.model, args.temperature, args.max_tokens)

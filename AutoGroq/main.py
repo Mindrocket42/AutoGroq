@@ -1,6 +1,16 @@
 # main.py
 
-import streamlit as st 
+import streamlit as st
+import os
+import toml
+
+# Load secrets from secrets.toml and set as environment variables if not already set
+secrets_path = os.path.join(os.path.dirname(__file__), "secrets.toml")
+if os.path.exists(secrets_path):
+    secrets = toml.load(secrets_path)
+    for key, value in secrets.items():
+        if key not in os.environ or not os.environ[key]:
+            os.environ[key] = value
 
 from agent_management import display_agents
 from utils.api_utils import fetch_available_models, get_api_key

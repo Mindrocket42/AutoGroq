@@ -42,8 +42,27 @@ class CodeDeveloperAgent(AgentBaseModel):
     
 
     def to_dict(self):
-        data = self.__dict__
-        for key, value in data.items():
-            if isinstance(value, ToolBaseModel):
-                data[key] = value.to_dict()
+        def make_serializable(obj):
+            if isinstance(obj, (str, int, float, bool, type(None))):
+                return obj
+            elif isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple, set)):
+                return [make_serializable(v) for v in obj]
+            elif hasattr(obj, "to_dict"):
+                return obj.to_dict()
+            elif hasattr(obj, "__dict__"):
+                # Avoid recursion on self
+                if obj is self:
+                    return None
+                return make_serializable(obj.__dict__)
+            else:
+                return str(obj)  # fallback to string representation
+
+        data = {}
+        for key, value in self.__dict__.items():
+            # Exclude callables and modules
+            if callable(value) or key.startswith("__"):
+                continue
+            data[key] = make_serializable(value)
         return data

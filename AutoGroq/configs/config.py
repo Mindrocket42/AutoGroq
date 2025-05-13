@@ -9,12 +9,11 @@ default_db_path = f'{home_dir}/.autogenstudio/database.sqlite'
 DEFAULT_DEBUG = False
 
 # Default configurations
-DEFAULT_LLM_PROVIDER = "anthropic"
+DEFAULT_LLM_PROVIDER = "openai"
 DEFAULT_GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_LMSTUDIO_API_URL = "http://localhost:1234/v1/chat/completions"
 DEFAULT_OLLAMA_API_URL = "http://127.0.0.1:11434/api/generate"
 DEFAULT_OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 
 # Try to import user-specific configurations from config_local.py
 try:
@@ -32,7 +31,6 @@ API_URLS = {
     "lmstudio": locals().get('LMSTUDIO_API_URL', DEFAULT_LMSTUDIO_API_URL),
     "ollama": locals().get('OLLAMA_API_URL', DEFAULT_OLLAMA_API_URL),
     "openai": locals().get('OPENAI_API_URL', DEFAULT_OPENAI_API_URL),
-    "anthropic": locals().get('ANTHROPIC_API_URL', DEFAULT_ANTHROPIC_API_URL),
 }
 
 API_KEY_NAMES = {
@@ -40,7 +38,6 @@ API_KEY_NAMES = {
     "lmstudio": None,
     "ollama": None,
     "openai": "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
 }
 
 # Retry settings
@@ -50,15 +47,6 @@ RETRY_TOKEN_LIMIT = 5000
 
 # Fallback model configurations (used when API fails)
 FALLBACK_MODEL_TOKEN_LIMITS = {
-    "anthropic": {
-        "claude-3-5-sonnet-20240620": 4096,
-        "claude-3-opus-20240229": 4096,
-        "claude-3-sonnet-20240229": 4096,
-        "claude-3-haiku-20240307": 4096,
-        "claude-2.1": 100000,
-        "claude-2.0": 100000,
-        "claude-instant-1.2": 100000,
-    },
     "groq": {
         "mixtral-8x7b-32768": 32768,
         "llama3-70b-8192": 8192,
@@ -81,7 +69,7 @@ FALLBACK_MODEL_TOKEN_LIMITS = {
 # Database path
 FRAMEWORK_DB_PATH = os.environ.get('FRAMEWORK_DB_PATH', default_db_path)
 
-SUPPORTED_PROVIDERS = ["anthropic", "groq", "lmstudio", "ollama", "openai"]
+SUPPORTED_PROVIDERS = ["groq", "lmstudio", "ollama", "openai"]
 
 BUILT_IN_AGENTS = ["Web Content Retriever", "Code Developer", "Code Tester"]
 
