@@ -16,7 +16,12 @@ from utils.ui_utils import (
 )
 
 
+from utils.ui_utils import project_management_ui
+
 def main():
+    project_management_ui()
+    if "current_project" not in st.session_state or not st.session_state["current_project"]:
+        st.stop()
     setup_logging()
     if 'warning_placeholder' not in st.session_state:
         st.session_state.warning_placeholder = st.empty()

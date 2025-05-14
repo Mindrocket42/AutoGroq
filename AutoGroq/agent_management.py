@@ -182,20 +182,20 @@ def display_agent_edit_form(agent, edit_index):
                     st.session_state.agents.pop(edit_index)
                     st.session_state[f'show_edit_{edit_index}'] = False
                     del st.session_state[f"delete_confirmed_{edit_index}_{agent.name}"]
-                    st.experimental_rerun()
+                    st.rerun()
                 if st.button("Cancel", key=f"cancel_delete_{edit_index}_{agent.name}"):
                     del st.session_state[f"delete_confirmed_{edit_index}_{agent.name}"]
-                    st.experimental_rerun()
+                    st.rerun()
         with col2:
             container = st.container()
             if container.button("X", key=f"delete_{edit_index}_{agent.name}"):
                 if st.session_state.get(f"delete_confirmed_{edit_index}_{agent.name}", False):
                     st.session_state.agents.pop(edit_index)
                     st.session_state[f'show_edit_{edit_index}'] = False
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.session_state[f"delete_confirmed_{edit_index}_{agent.name}"] = True
-                    st.experimental_rerun()
+                    st.rerun()
         
         description_value = agent.description
         
@@ -244,7 +244,7 @@ def display_agent_edit_form(agent, edit_index):
                         agent.config['llm_config']['config_list'] = [{}]
                     agent.config['llm_config']['config_list'][0]['model'] = selected_model
                     agent.config['llm_config']['max_tokens'] = provider_models.get(selected_model, 4096)
-                st.experimental_rerun()
+                st.rerun()
         
         # Display the description in a text area
         new_description = st.text_area("Description", value=description_value, key=f"desc_{edit_index}_{agent.name}")
@@ -259,7 +259,7 @@ def display_agent_edit_form(agent, edit_index):
                     print(f"Description regenerated for {agent.name}: {new_description}")
                     st.session_state[f"regenerate_description_{edit_index}_{agent.name}"] = True
                     description_value = new_description
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     print(f"Failed to regenerate description for {agent.name}")
         with col2:
@@ -283,7 +283,7 @@ def display_agent_edit_form(agent, edit_index):
                 if 'edit_agent_index' in st.session_state:
                     del st.session_state['edit_agent_index']
                 st.session_state.agents[edit_index] = agent
-                st.experimental_rerun()
+                st.rerun()
 
     # Add a debug print to check the agent's description
     print(f"Agent {agent.name} description: {agent.description}")
@@ -428,7 +428,7 @@ def process_agent_interaction(agent_index):
         logger.error(error_message)
 
     # Force a rerun to update the UI and trigger the moderator if necessary
-    st.experimental_rerun()
+    st.rerun()
 
 
 def regenerate_agent_description(agent):

@@ -1,3 +1,88 @@
+def save_current_project_state():
+    import streamlit as st
+    from project_manager import ProjectManager
+    pm = ProjectManager()
+    current_project = st.session_state.get("current_project")
+    if not current_project:
+        return
+    metadata = st.session_state.get("project_metadata", {})
+    chat_history = st.session_state.get("discussion_history", [])
+    agent_state = st.session_state.get("agents", [])
+    project_name = metadata.get("name") if isinstance(metadata, dict) else None
+    if not project_name:
+        # Fallback: try to get from session or use a default
+        project_name = st.session_state.get("selected_project") or "default_project"
+    pm.save_project(project_name, metadata, chat_history, agent_state)
+import os
+from project_manager import ProjectManager
+from configs.current_project import Current_Project
+
+def project_management_ui():
+    st.sidebar.header("Project Management")
+    pm = ProjectManager()
+    projects = pm.list_projects()
+    selected_project = st.sidebar.selectbox("Select Project", projects + ["Create New Project", "Import Project"], key="project_selector")
+
+    # Create new project
+    if selected_project == "Create New Project":
+        new_project_name = st.sidebar.text_input("New Project Name", key="new_project_name")
+        if st.sidebar.button("Create", key="create_project_btn") and new_project_name:
+            pm.create_project(new_project_name)
+            st.session_state["current_project"] = new_project_name
+            st.rerun()
+
+    # Import project
+    elif selected_project == "Import Project":
+        uploaded_zip = st.sidebar.file_uploader("Import Project (.zip)", type="zip", key="import_project_zip")
+        if uploaded_zip and st.sidebar.button("Import", key="import_project_btn"):
+            zip_path = os.path.join(pm.projects_root, uploaded_zip.name)
+            with open(zip_path, "wb") as f:
+                f.write(uploaded_zip.read())
+            pm.import_project(zip_path)
+            st.session_state["current_project"] = os.path.splitext(uploaded_zip.name)[0]
+            st.rerun()
+
+    # Existing project selected
+    elif selected_project:
+        project_data = pm.load_project(selected_project)
+        # Convert loaded dict to Current_Project object
+        current_project_obj = Current_Project()
+        if "deliverables" in project_data:
+            current_project_obj.deliverables = project_data["deliverables"]
+        if "re_engineered_prompt" in project_data:
+            current_project_obj.re_engineered_prompt = project_data["re_engineered_prompt"]
+        if "implementation_phases" in project_data:
+            current_project_obj.implementation_phases = project_data["implementation_phases"]
+        if "current_phase" in project_data:
+            current_project_obj.current_phase = project_data["current_phase"]
+        st.session_state["current_project"] = current_project_obj
+
+        st.sidebar.markdown(f"**Project:** {project_data['metadata'].get('name', selected_project)}")
+        st.sidebar.markdown(f"**Files:** `{project_data['files_dir']}`")
+        st.sidebar.markdown(f"**Chat History:** {len(project_data['chat_history'])} messages")
+        st.sidebar.markdown(f"**Agent State:** {len(project_data['agent_state']) if isinstance(project_data['agent_state'], list) else 'dict'}")
+
+        # Save project
+        if st.sidebar.button("Save Project", key="save_project_btn"):
+            pm.save_project(
+                selected_project,
+                project_data["metadata"],
+                project_data["chat_history"],
+                project_data["agent_state"]
+            )
+            st.sidebar.success("Project saved.")
+
+        # Export project
+        if st.sidebar.button("Export Project", key="export_project_btn"):
+            export_path = pm.projects_root
+            zip_path = pm.export_project(selected_project, export_path)
+            with open(zip_path, "rb") as f:
+                st.sidebar.download_button(
+                    label="Download Project Zip",
+                    data=f.read(),
+                    file_name=os.path.basename(zip_path),
+                    mime="application/zip"
+                )
 import datetime
 import json
 import os
@@ -106,6 +191,11 @@ def create_project_manager(rephrased_text):
 def display_discussion_and_whiteboard():
     tabs = st.tabs(["Discussion", "Whiteboard", "History", "Deliverables", "Download", "Debug"])
     discussion_history = get_discussion_history()
+    # Ensure discussion_history is a string for code extraction
+    if isinstance(discussion_history, list):
+        discussion_history_str = "\n".join(str(item) for item in discussion_history)
+    else:
+        discussion_history_str = str(discussion_history)
 
     with tabs[0]:
         # Display only the most recent agent response
@@ -116,7 +206,7 @@ def display_discussion_and_whiteboard():
 
     with tabs[1]:
         # Extract code snippets from the full discussion history
-        code_snippets = extract_code_from_response(discussion_history)
+        code_snippets = extract_code_from_response(discussion_history_str)
         
         # Display code snippets in the whiteboard, allowing editing
         new_whiteboard_content = st.text_area("Whiteboard (Code Snippets)", value=code_snippets, height=400, key="whiteboard")
@@ -126,7 +216,13 @@ def display_discussion_and_whiteboard():
             st.session_state.whiteboard_content = new_whiteboard_content
 
     with tabs[2]:
-        st.write(discussion_history)
+        # Display each message in the discussion history clearly
+        if isinstance(discussion_history, list):
+            for idx, msg in enumerate(discussion_history):
+                with st.expander(f"Message {idx+1}", expanded=False):
+                    st.write(msg)
+        else:
+            st.write(discussion_history)
 
 
     with tabs[3]:
@@ -386,7 +482,7 @@ def display_reset_and_upload_buttons():
             # Additionally, explicitly reset user_input to an empty string
             st.session_state.user_input = ""
             st.session_state.show_begin_button = True
-            st.experimental_rerun()
+            st.rerun()
     
     with col2:
         uploaded_file = st.file_uploader("Upload a sample .csv of your data (optional)", type="csv")
@@ -415,7 +511,7 @@ def display_user_request_input():
             else:
                 st.session_state.agents = []
                 st.session_state.show_request_input = False
-            st.experimental_rerun()
+            st.rerun()
 
 
 def extract_code_from_response(response):
@@ -766,10 +862,11 @@ def select_model():
     else:
         default_model = st.session_state.model
     
+    sorted_models = sorted(provider_models.keys())
     selected_model = st.selectbox(
         'Select Model',
-        options=list(provider_models.keys()),
-        index=list(provider_models.keys()).index(default_model),
+        options=sorted_models,
+        index=sorted_models.index(default_model),
         key='model_selection'
     )
     
@@ -808,7 +905,7 @@ def select_provider():
             del st.session_state.model
         
         # Trigger a rerun to update the UI
-        st.experimental_rerun()
+        st.rerun()
     
     return selected_provider
 
@@ -971,7 +1068,7 @@ def trigger_moderator_agent_if_checked():
             st.success("Auto-moderation complete. New input has been generated.")
         else:
             st.warning("Auto-moderation did not produce a response. Please try again or proceed manually.")
-    st.experimental_rerun()
+    st.rerun()
 
 
 def update_api_url(provider):
@@ -989,26 +1086,33 @@ def update_deliverable_status(index):
         current_project.deliverables[index]["done"] = False
         for phase in current_project.implementation_phases:
             current_project.deliverables[index]["phase"][phase] = False
-    st.experimental_rerun()
+    st.rerun()
 
 
 def update_discussion_and_whiteboard(agent_name, response, user_input):
+    # Ensure discussion_history is a list
+    if not isinstance(st.session_state.discussion_history, list):
+        # If it's a string (legacy), convert to a list
+        st.session_state.discussion_history = [st.session_state.discussion_history]
+
     # Update the full discussion history
     if user_input:
-        user_input_text = f"\n\nUser: {user_input}\n\n"
-        st.session_state.discussion_history += user_input_text
+        user_input_text = f"User: {user_input}"
+        st.session_state.discussion_history.append(user_input_text)
 
     # Format the most recent response
     st.session_state.most_recent_response = f"{agent_name}:\n\n{response}\n\n"
 
     # Add the new response to the full discussion history
-    st.session_state.discussion_history += st.session_state.most_recent_response
+    st.session_state.discussion_history.append(st.session_state.most_recent_response)
 
     st.session_state.last_agent = agent_name
     st.session_state.last_comment = response
 
+    # Persist state to disk
+    save_current_project_state()
     # Force a rerun to update the UI
-    st.experimental_rerun()
+    st.rerun()
 
 
 def update_user_input():

@@ -245,7 +245,7 @@ def process_tool_request():
                             st.session_state.proposed_tool = None
                             st.session_state.tool_name = None
                             st.session_state.tool_processed = True
-                            st.experimental_rerun()
+                            st.rerun()
                 else:
                     st.error("Failed to extract tool name from the proposed tool.")
             else:

@@ -9,7 +9,7 @@ class AnthropicProvider(BaseLLMProvider):
     def __init__(self, api_url, api_key):
         self.api_key = api_key
         self.api_url = api_url or "https://api.anthropic.com/v1/messages"
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.client = anthropic.Client(api_key=self.api_key)
 
     def get_available_models(self):
         return {

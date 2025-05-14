@@ -20,15 +20,48 @@ def create_default_agent():
 
 
 def initialize_session_variables():
+    from project_manager import ProjectManager
 
+    # Load project-based state if a project is selected
+    current_project = st.session_state.get("current_project")
+    pm = ProjectManager()
+    project_data = None
+    if current_project:
+        try:
+            project_data = pm.load_project(current_project)
+        except Exception:
+            project_data = None
+
+    # Chat history
+    if project_data and "chat_history" in project_data:
+        st.session_state.discussion_history = project_data["chat_history"]
+    elif "discussion_history" not in st.session_state:
+        st.session_state.discussion_history = []
+
+    # Agent state
+    if project_data and "agent_state" in project_data:
+        st.session_state.agents = project_data["agent_state"]
+    elif "agents" not in st.session_state:
+        st.session_state.agents = []
+
+    # Project metadata
+    if project_data and "metadata" in project_data:
+        st.session_state.project_metadata = project_data["metadata"]
+    elif "project_metadata" not in st.session_state:
+        st.session_state.project_metadata = {}
+
+    # Files dir
+    if project_data and "files_dir" in project_data:
+        st.session_state.files_dir = project_data["files_dir"]
+    elif "files_dir" not in st.session_state:
+        st.session_state.files_dir = None
+
+    # The rest of the session state (unchanged from before)
     if "agent_model" not in st.session_state:
         st.session_state.agent_model = create_default_agent()
 
     if "agent_models" not in st.session_state:
         st.session_state.agent_models = []
-
-    if "agents" not in st.session_state:
-        st.session_state.agents = []
 
     # Ensure built-in agents are always present
     built_in_agents = [
@@ -36,8 +69,6 @@ def initialize_session_variables():
         CodeDeveloperAgent.create_default(),
         CodeTesterAgent.create_default()
     ]
-
-    # Add built-in agents if they're not already in the list
     for built_in_agent in built_in_agents:
         if not any(agent.name == built_in_agent.name for agent in st.session_state.agents):
             st.session_state.agents.append(built_in_agent)
@@ -53,12 +84,6 @@ def initialize_session_variables():
 
     if "crewai_zip_buffer" not in st.session_state:
         st.session_state.crewai_zip_buffer = None
-
-    if "current_project" not in st.session_state:
-        st.session_state.current_project = Current_Project()
-
-    if "discussion_history" not in st.session_state:
-        st.session_state.discussion_history = ""
 
     if "last_agent" not in st.session_state:
         st.session_state.last_agent = ""
@@ -76,7 +101,7 @@ def initialize_session_variables():
         st.session_state.most_recent_response = ""
 
     if "previous_user_request" not in st.session_state:
-        st.session_state.previous_user_request = ""        
+        st.session_state.previous_user_request = ""
 
     if "project_model" not in st.session_state:
         st.session_state.project_model = ProjectBaseModel()
@@ -93,11 +118,11 @@ def initialize_session_variables():
     if "rephrased_request" not in st.session_state:
         st.session_state.rephrased_request = ""
 
-    if "response_text" not in st.session_state:       
+    if "response_text" not in st.session_state:
         st.session_state.response_text = ""
 
     if "show_edit" not in st.session_state:
-        st.session_state.show_edit = False        
+        st.session_state.show_edit = False
 
     if "selected_tools" not in st.session_state:
         st.session_state.selected_tools = []
@@ -122,14 +147,10 @@ def initialize_session_variables():
             secrets=None,
             libraries=None,
             timestamp=None
-        )    
+        )
 
     if "tool_models" not in st.session_state:
         st.session_state.tool_models = []
-
-
-    # if "tools" not in st.session_state:
-    #     st.session_state.tools = [] 
 
     if "tool_functions" not in st.session_state:
         st.session_state.tool_functions = {}
@@ -144,7 +165,7 @@ def initialize_session_variables():
         st.session_state.tool_result_string = ""
 
     if "top_p" not in st.session_state:
-          st.session_state.top_p = 1
+        st.session_state.top_p = 1
 
     if "uploaded_data" not in st.session_state:
         st.session_state.uploaded_data = None
@@ -153,7 +174,7 @@ def initialize_session_variables():
         st.session_state.user_input = ""
 
     if "user_input_widget_auto_moderate" not in st.session_state:
-            st.session_state.user_input_widget_auto_moderate = ""
+        st.session_state.user_input_widget_auto_moderate = ""
 
     if st.session_state.get("user_request"):
         handle_user_request(st.session_state)
