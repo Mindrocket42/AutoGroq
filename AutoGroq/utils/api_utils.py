@@ -34,10 +34,26 @@ def fetch_available_models(provider=None):
     try:
         models = llm_provider.get_available_models()
         st.session_state.available_models = models
+        # If provider was previously marked invalid, remove it from the set
+        if "invalid_api_key_providers" in st.session_state and provider in st.session_state["invalid_api_key_providers"]:
+            st.session_state["invalid_api_key_providers"].remove(provider)
         return models
     except Exception as e:
-        st.error(f"Failed to fetch available models for {provider}: {str(e)}")
-        return FALLBACK_MODEL_TOKEN_LIMITS.get(provider, {})
+        # Detect 403 error (invalid API key)
+        error_str = str(e)
+        if "403" in error_str or "forbidden" in error_str.lower():
+            st.warning(f"API key for provider '{provider}' is invalid (403 Forbidden). Please enter a valid API key.")
+            if "invalid_api_key_providers" not in st.session_state:
+                st.session_state["invalid_api_key_providers"] = set()
+            st.session_state["invalid_api_key_providers"].add(provider)
+            # Optionally clear the API key from session state
+            api_key_env_var = f"{provider.upper()}_API_KEY"
+            if api_key_env_var in st.session_state:
+                del st.session_state[api_key_env_var]
+            return {}
+        else:
+            st.error(f"Failed to fetch available models for {provider}: {error_str}")
+            return FALLBACK_MODEL_TOKEN_LIMITS.get(provider, {})
     
 
 def get_api_key(provider=None):
@@ -112,6 +128,4 @@ def set_llm_provider_title():
         st.title("Auto̶G̶r̶o̶qLM_Studio")
     elif LLM_PROVIDER == "openai":
         st.title("Auto̶G̶r̶o̶qChatGPT")
-    elif LLM_PROVIDER == "anthropic":
-        st.title("Auto̶G̶r̶o̶qClaude")
 

@@ -43,18 +43,30 @@ class ToolBaseModel:
         return f"{self.name}: {self.description}"
 
     def to_dict(self):
+        def deep_to_dict(obj):
+            if hasattr(obj, "to_dict") and callable(obj.to_dict):
+                return obj.to_dict()
+            elif isinstance(obj, dict):
+                return {k: deep_to_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [deep_to_dict(item) for item in obj]
+            elif isinstance(obj, tuple):
+                return tuple(deep_to_dict(item) for item in obj)
+            else:
+                return obj
+
         return {
             "name": self.name,
             "description": self.description,
             "title": self.title,
             "file_name": self.file_name,
-            "content": self.content,
+            "content": deep_to_dict(self.content),
             "id": self.id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "user_id": self.user_id,
-            "secrets": self.secrets,
-            "libraries": self.libraries,
+            "secrets": deep_to_dict(self.secrets),
+            "libraries": deep_to_dict(self.libraries),
             "timestamp": self.timestamp
         }
 

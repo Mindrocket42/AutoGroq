@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_tokens", type=int, default=32768, help="The maximum number of tokens for the agent.")
     parser.add_argument("--agent_type", default="autogen", choices=["autogen", "crewai"], help="The type of agent to create.")
     parser.add_argument("--output", default="agent.json", help="The output file path for the agent JSON.")
-    parser.add_argument("--provider", default="groq", help="The LLM provider to use (e.g., 'openai', 'anthropic').")
+    parser.add_argument("--provider", default="groq", help="The LLM provider to use (e.g., 'openai', 'groq', 'lmstudio', 'ollama').")
     
     args = parser.parse_args()
     create_agent(args.request, args.provider, args.model, args.temperature, args.max_tokens, args.output)

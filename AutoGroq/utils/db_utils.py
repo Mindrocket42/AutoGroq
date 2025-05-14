@@ -6,6 +6,10 @@ import sqlite3
 import streamlit as st
 import traceback
 import uuid
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 from configs.config import FRAMEWORK_DB_PATH
 
@@ -15,7 +19,7 @@ from utils.workflow_utils import get_workflow_from_agents
 
 def export_to_autogen():
     db_path = FRAMEWORK_DB_PATH
-    print(f"Database path: {db_path}")
+    logger.info(f"Database path: {db_path}")
     if db_path:
         export_data(db_path)
     else:
@@ -23,20 +27,20 @@ def export_to_autogen():
 
 
 def export_data(db_path):
-    print(f"Exporting data to: {db_path}")
+    logger.info(f"Exporting data to: {db_path}")
 
     if db_path:
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            print("Connected to the database successfully.")
+            logger.info("Connected to the database successfully.")
 
             agents = st.session_state.agents
-            print(f"Number of agents: {len(agents)}")
+            logger.info(f"Number of agents: {len(agents)}")
 
             for index, agent in enumerate(agents):
                 try:
-                    print(f"Processing agent {index + 1}: {agent.name}")
+                    logger.info(f"Processing agent {index + 1}: {agent.name}")
                     
                     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
@@ -54,19 +58,21 @@ def export_data(db_path):
                         normalized_config['system_message']  # task_instruction
                     )
                     
-                    print(f"Inserting agent data: {agent_data}")
+                    logger.debug(f"Inserting agent data: {agent_data}")
                     
                     cursor.execute("""
-                        INSERT INTO agent (id, created_at, updated_at, user_id, version, type, config, task_instruction) 
+                        INSERT INTO agent (id, created_at, updated_at, user_id, version, type, config, task_instruction)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, agent_data)
                     
-                    print(f"Inserted agent: {agent.name}")
+                    logger.info(f"Inserted agent: {agent.name}")
 
                 except Exception as e:
-                    print(f"Error processing agent {index + 1}: {str(e)}")
-                    print(f"Agent data: {agent.__dict__}")
-                    traceback.print_exc()
+                    logger.error(f"Error processing agent {index + 1}: {str(e)}")
+                    logger.error(f"Agent data: {agent.__dict__}")
+                    st.error(f"Error processing agent {index + 1}: {str(e)}")
+                    if 'DEBUG' in globals() and DEBUG:
+                        traceback.print_exc()
 
             # Handle skills/tools
             for tool in st.session_state.tool_models:
@@ -88,10 +94,12 @@ def export_data(db_path):
                         INSERT INTO skill (id, created_at, updated_at, user_id, version, name, content, description, secrets, libraries)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, skill_data)
-                    print(f"Inserted skill: {tool.name}")
+                    logger.info(f"Inserted skill: {tool.name}")
                 except Exception as e:
-                    print(f"Error inserting skill {tool.name}: {str(e)}")
-                    traceback.print_exc()
+                    logger.error(f"Error inserting skill {tool.name}: {str(e)}")
+                    st.error(f"Error inserting skill {tool.name}: {str(e)}")
+                    if 'DEBUG' in globals() and DEBUG:
+                        traceback.print_exc()
 
             # Handle the workflow
             try:

@@ -100,7 +100,6 @@ logger = logging.getLogger(__name__)
 from configs.config import (DEBUG, LLM_PROVIDER, MAX_RETRIES, 
         FALLBACK_MODEL_TOKEN_LIMITS, RETRY_DELAY, SUPPORTED_PROVIDERS)
 
-from anthropic.types import Message
 from configs.current_project import Current_Project
 from models.agent_base_model import AgentBaseModel
 from models.workflow_base_model import WorkflowBaseModel
@@ -124,7 +123,8 @@ def create_agents(json_data: List[Dict[str, Any]]) -> Tuple[List[AgentBaseModel]
         description = agent_data.get('description', '')
         
         if not expert_name:
-            print("Missing agent name. Skipping...")
+            logger.error("Missing agent name. Skipping...")
+            st.error("Missing agent name. Skipping...")
             continue
 
         autogen_agent_data, crewai_agent_data = create_agent_data({
@@ -147,12 +147,13 @@ def create_agents(json_data: List[Dict[str, Any]]) -> Tuple[List[AgentBaseModel]
                 provider=autogen_agent_data.get('provider', ''),
                 model=autogen_agent_data.get('model', '')
             )
-            print(f"Created agent: {agent_model.name} with description: {agent_model.description}")
+            logger.info(f"Created agent: {agent_model.name} with description: {agent_model.description}")
             autogen_agents.append(agent_model)
             crewai_agents.append(crewai_agent_data)
         except Exception as e:
-            print(f"Error creating agent {expert_name}: {str(e)}")
-            print(f"Agent data: {autogen_agent_data}")
+            logger.error(f"Error creating agent {expert_name}: {str(e)}")
+            logger.error(f"Agent data: {autogen_agent_data}")
+            st.error(f"Error creating agent {expert_name}: {str(e)}")
             continue
 
     return autogen_agents, crewai_agents
@@ -852,13 +853,20 @@ def rephrase_prompt(user_request, model, max_tokens=None, llm_provider=None, pro
 def select_model():
     provider = st.session_state.get('provider', LLM_PROVIDER)
     provider_models = get_provider_models(provider)
-    
+
     if not provider_models:
         st.warning(f"No models available for {provider}. Please check your API key and connection.")
         return None
 
-    if 'model' not in st.session_state or st.session_state.model not in provider_models:
-        default_model = next(iter(provider_models))
+    # Sort model keys alphabetically
+    model_keys = sorted(provider_models.keys())
+
+    if not model_keys:
+        st.warning(f"No models found for provider {provider}.")
+        return None
+
+    if 'model' not in st.session_state or st.session_state.model not in model_keys:
+        default_model = model_keys[0]
     else:
         default_model = st.session_state.model
     
@@ -872,27 +880,48 @@ def select_model():
     
     st.session_state.model = selected_model
     st.session_state.max_tokens = provider_models[selected_model]
-    
+
     return selected_model
 
 
 def select_provider():
-    selected_provider = st.selectbox(
-        'Select Provider',
-        options=SUPPORTED_PROVIDERS,
-        index=SUPPORTED_PROVIDERS.index(st.session_state.get('provider', LLM_PROVIDER)),
-        key='provider_selection'
-    )
-    
+    # Exclude providers with invalid API keys (from session state)
+    invalid_providers = st.session_state.get("invalid_api_key_providers", set())
+    available_providers = sorted([
+        provider for provider in SUPPORTED_PROVIDERS
+        if get_api_key(provider) is not None and provider not in invalid_providers
+    ])
+
+    if not available_providers:
+        st.warning("No providers with valid and authorized API keys found. Please add or update an API key in secrets.toml or environment variables.")
+        return None
+
+    try:
+        # If the current provider is not in the available list, default to the first and update session state
+        current_provider = st.session_state.get('provider')
+        if current_provider not in available_providers:
+            current_provider = available_providers[0]
+            st.session_state['provider'] = current_provider
+
+        selected_provider = st.selectbox(
+            'Select Provider',
+            options=available_providers,
+            index=available_providers.index(current_provider),
+            key='provider_selection'
+        )
+    except Exception as e:
+        st.warning(f"Error displaying provider selection: {e}")
+        return None
+
     if selected_provider != st.session_state.get('provider'):
         st.session_state.provider = selected_provider
         update_api_url(selected_provider)
-        
+
         # Clear any existing warnings
         if 'warning_placeholder' in st.session_state:
             st.session_state.warning_placeholder.empty()
-        
-        # Check for API key and prompt if not found
+
+        # Check for API key and prompt if not found (should not happen, but safe)
         api_key = get_api_key(selected_provider)
         if api_key is None:
             display_api_key_input(selected_provider)
